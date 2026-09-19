@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Veeno AI</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="bg-orb orb1"></div>
+  <div class="bg-orb orb2"></div>
+  <div class="shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">OPENROUTER · FREE-FIRST STUDIO</div>
+        <h1 class="brand-title">veeno ai</h1>
+        <p class="lead">One responsive dashboard for <strong>Video Generation</strong> and <strong>Image Generation</strong>. Free models appear first, premium models are clearly labeled, and the backend keeps your OpenRouter key server-side.</p>
+      </div>
+      <div class="top-actions">
+        <button id="refreshAll" class="ghost">Refresh models</button>
+        <button id="settingsBtn" class="primary">API / Access</button>
+      </div>
+    </header>
+
+    <div id="notice" class="notice">Loading live video and image model catalogs…</div>
+
+    <section class="hero-cards">
+      <article class="mini-card">
+        <div class="mini-label">Mode</div>
+        <div class="mini-value">Free-first</div>
+        <p>Free models are shown first. Paid models are marked clearly for future use.</p>
+      </article>
+      <article class="mini-card">
+        <div class="mini-label">Devices</div>
+        <div class="mini-value">Mobile + PC</div>
+        <p>Responsive dashboard with stacked layout on small screens.</p>
+      </article>
+      <article class="mini-card">
+        <div class="mini-label">Sections</div>
+        <div class="mini-value">Video + Image</div>
+        <p>One tool, two generation workflows, same API/access settings.</p>
+      </article>
+    </section>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="videoTab">Video Studio</button>
+      <button class="tab" data-tab="imageTab">Image Studio</button>
+    </div>
+
+    <main>
+      <section id="videoTab" class="tabpanel active">
+        <div class="panel grid-layout">
+          <div class="panel-left">
+            <div class="section-head">
+              <h2>Video model</h2>
+              <span class="subpill">Quality-sorted dropdown</span>
+            </div>
+            <label for="videoModel">Choose video model</label>
+            <select id="videoModel"></select>
+            <div id="videoModelInfo" class="info-card"></div>
+
+            <label for="videoPrompt">Prompt</label>
+            <textarea id="videoPrompt" rows="8" placeholder="Describe the subject, movement, camera angle, lighting, style, mood and environment…"></textarea>
+
+            <div class="grid4">
+              <div>
+                <label for="videoDuration">Duration</label>
+                <select id="videoDuration"></select>
+              </div>
+              <div>
+                <label for="videoResolution">Resolution</label>
+                <select id="videoResolution"></select>
+              </div>
+              <div>
+                <label for="videoAspect">Aspect ratio</label>
+                <select id="videoAspect"></select>
+              </div>
+              <div>
+                <label for="videoAudio">Audio</label>
+                <select id="videoAudio"><option value="false">Off</option><option value="true">On</option></select>
+              </div>
+            </div>
+
+            <details>
+              <summary>Optional image guidance</summary>
+              <div class="grid2 padtop">
+                <div>
+                  <label for="videoFirstFrame">First-frame image URL</label>
+                  <input id="videoFirstFrame" placeholder="https://…/first-frame.jpg" />
+                </div>
+                <div>
+                  <label for="videoReferenceImage">Reference image URL</label>
+                  <input id="videoReferenceImage" placeholder="https://…/reference.jpg" />
+                </div>
+              </div>
+              <p class="hint">If both are supplied, first-frame guidance is preferred.</p>
+            </details>
+
+            <button id="generateVideo" class="primary wide">Generate video</button>
+          </div>
+
+          <div class="panel-right">
+            <div class="section-head">
+              <h2>Video job</h2>
+              <span id="videoJobStatus" class="badge">idle</span>
+            </div>
+            <div id="videoJobEmpty" class="empty">No video job submitted yet.</div>
+            <div id="videoJobBox" class="hidden">
+              <div class="statusrow"><span id="videoJobId"></span><button id="checkVideoNow" class="ghost small hidden">Check now</button></div>
+              <div class="progress"><div id="videoProgressBar"></div></div>
+              <p id="videoJobMessage" class="hint"></p>
+              <video id="videoPreview" class="hidden" controls playsinline></video>
+              <div class="actions"><a id="videoDownload" class="button hidden" download>Download MP4</a></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="imageTab" class="tabpanel">
+        <div class="panel grid-layout">
+          <div class="panel-left">
+            <div class="section-head">
+              <h2>Image model</h2>
+              <span class="subpill">Free first + OpenAI/ChatGPT listed</span>
+            </div>
+            <label for="imageModel">Choose image model</label>
+            <select id="imageModel"></select>
+            <div id="imageModelInfo" class="info-card"></div>
+
+            <label for="imagePrompt">Prompt</label>
+            <textarea id="imagePrompt" rows="8" placeholder="Describe the image clearly: subject, style, composition, colors, lighting, text if any, and aspect ratio intent…"></textarea>
+
+            <div class="grid4">
+              <div>
+                <label for="imageAspect">Aspect ratio</label>
+                <select id="imageAspect"></select>
+              </div>
+              <div>
+                <label for="imageQuality">Quality</label>
+                <select id="imageQuality"></select>
+              </div>
+              <div>
+                <label for="imageBackground">Background</label>
+                <select id="imageBackground"></select>
+              </div>
+              <div>
+                <label for="imageCount">Images</label>
+                <select id="imageCount"></select>
+              </div>
+            </div>
+
+            <details>
+              <summary>Optional reference image</summary>
+              <div class="padtop">
+                <label for="imageReferenceUrl">Reference image URL</label>
+                <input id="imageReferenceUrl" placeholder="https://…/reference.png" />
+                <p class="hint">Useful for image editing or style guidance on models that support references.</p>
+              </div>
+            </details>
+
+            <button id="generateImage" class="primary wide">Generate image</button>
+          </div>
+
+          <div class="panel-right">
+            <div class="section-head">
+              <h2>Image results</h2>
+              <span id="imageJobStatus" class="badge">idle</span>
+            </div>
+            <div id="imageJobEmpty" class="empty">No image generated yet.</div>
+            <div id="imageResults" class="image-grid hidden"></div>
+            <p id="imageMessage" class="hint"></p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      veeno ai checks OpenRouter model catalogs live. Free models are surfaced first; premium models are shown for future reference and are clearly marked.
+    </footer>
+  </div>
+
+  <dialog id="settingsDialog">
+    <form method="dialog" class="dialogbox">
+      <div class="section-head"><h2>API / Access</h2><button class="icon">×</button></div>
+      <p class="hint">Recommended: keep your owner key on Vercel as <code>OPENROUTER_API_KEY</code>. Friends can use BYOK if you want them to use their own quota.</p>
+      <label for="authMode">Mode</label>
+      <select id="authMode">
+        <option value="owner">Use site owner key</option>
+        <option value="byok">Use my own OpenRouter key</option>
+      </select>
+      <div id="ownerFields">
+        <label for="accessCode">Access code (only if site owner configured one)</label>
+        <input id="accessCode" type="password" autocomplete="off" placeholder="Optional access code" />
+      </div>
+      <div id="byokFields" class="hidden">
+        <label for="byokKey">Your OpenRouter API key</label>
+        <input id="byokKey" type="password" autocomplete="off" placeholder="sk-or-v1-…" />
+        <p class="hint">Stored only in this browser session.</p>
+      </div>
+      <button id="saveSettings" class="primary" value="default">Save & check</button>
+    </form>
+  </dialog>
+
+  <script src="/app.js"></script>
+</body>
+</html>
