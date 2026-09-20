@@ -12,9 +12,9 @@
   <div class="shell">
     <header class="topbar">
       <div>
-        <div class="eyebrow">OPENROUTER · FREE-FIRST STUDIO</div>
+        <div class="eyebrow">OPENROUTER · FREE-ONLY STUDIO</div>
         <h1 class="brand-title">veeno ai</h1>
-        <p class="lead">One responsive dashboard for <strong>Video Generation</strong> and <strong>Image Generation</strong>. Free models appear first, premium models are clearly labeled, and the backend keeps your OpenRouter key server-side.</p>
+        <p class="lead">One responsive dashboard for <strong>Video Generation</strong> and <strong>Image Generation</strong>. Only currently verified free models are shown; paid models are hidden completely.</p>
       </div>
       <div class="top-actions">
         <button id="refreshAll" class="ghost">Refresh models</button>
@@ -27,8 +27,8 @@
     <section class="hero-cards">
       <article class="mini-card">
         <div class="mini-label">Mode</div>
-        <div class="mini-value">Free-first</div>
-        <p>Free models are shown first. Paid models are marked clearly for future use.</p>
+        <div class="mini-value">Free-only</div>
+        <p>Only verified free models are shown. Paid models never appear in the dropdowns.</p>
       </article>
       <article class="mini-card">
         <div class="mini-label">Devices</div>
@@ -53,7 +53,7 @@
           <div class="panel-left">
             <div class="section-head">
               <h2>Video model</h2>
-              <span class="subpill">Quality-sorted dropdown</span>
+              <span class="subpill">Verified free only</span>
             </div>
             <label for="videoModel">Choose video model</label>
             <select id="videoModel"></select>
@@ -121,7 +121,7 @@
           <div class="panel-left">
             <div class="section-head">
               <h2>Image model</h2>
-              <span class="subpill">Free first + OpenAI/ChatGPT listed</span>
+              <span class="subpill">Verified free only</span>
             </div>
             <label for="imageModel">Choose image model</label>
             <select id="imageModel"></select>
@@ -175,7 +175,7 @@
     </main>
 
     <footer>
-      veeno ai checks OpenRouter model catalogs live. Free models are surfaced first; premium models are shown for future reference and are clearly marked.
+      veeno ai checks OpenRouter media catalogs live and displays only models verified as free at that moment. Paid models are hidden.
     </footer>
   </div>
 
