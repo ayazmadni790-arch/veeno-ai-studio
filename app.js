@@ -121,7 +121,7 @@ function updateImageSelection() {
   fillSelect($('imageBackground'), state.selectedImage?.supported_background, 'auto');
   const counts = Array.from({ length: Math.max(1, state.selectedImage?.max_images || 1) }, (_, i) => i + 1);
   fillSelect($('imageCount'), counts, '1');
-  $('generateImage').disabled = !state.selectedImage || !state.selectedImage.free;
+  $('generateImage').disabled = !state.selectedImage;
 }
 
 async function loadModels() {
@@ -141,10 +141,10 @@ async function loadModels() {
 
     const freeVideos = state.videoModels.length;
     const freeImages = state.imageModels.length;
-    if (freeVideos > 0) {
-      setNotice(`Free video is LIVE: ${freeVideos} verified Hugging Face ZeroGPU model available. Image setup will be added next.`, 'ok');
+    if (freeVideos > 0 || freeImages > 0) {
+      setNotice(`Free AI is LIVE: ${freeVideos} video model / ${freeImages} image model available through Hugging Face ZeroGPU.`, 'ok');
     } else {
-      setNotice('Hugging Face video model is not available because HF_TOKEN is missing or the provider is unavailable.', 'bad');
+      setNotice('Hugging Face models are not available because HF_TOKEN is missing or the provider is unavailable.', 'bad');
     }
   } catch (e) {
     setNotice(e.message, 'bad');
@@ -216,70 +216,54 @@ function updateVideoProgress() {}
 async function checkVideoJob() {}
 function startPolling() {}
 
-function dataUrlFromImage(item) {
-  const media = item?.media_type || 'image/png';
-  return `data:${media};base64,${item?.b64_json || ''}`;
-}
-
 async function generateImage() {
   if (!state.selectedImage) return;
-  if (!state.selectedImage.free) return alert('This selected image model is premium/paid. This build currently allows free models only.');
   const prompt = $('imagePrompt').value.trim();
   if (prompt.length < 3) return alert('Please enter a prompt.');
 
   $('generateImage').disabled = true;
-  $('generateImage').textContent = 'Generating…';
-  $('imageJobStatus').textContent = 'running';
-  $('imageMessage').textContent = '';
+  $('generateImage').textContent = 'Generating on free GPU…';
+  $('imageJobEmpty').classList.add('hidden');
+  $('imageResults').classList.remove('hidden');
+  $('imageResults').innerHTML = '<div class="empty">Generating image on Hugging Face ZeroGPU…</div>';
+  $('imageJobStatus').textContent = 'generating';
+  $('imageMessage').textContent = 'FLUX.1 Schnell is generating your image. Free ZeroGPU may queue during busy periods…';
 
   try {
     const body = {
       model: state.selectedImage.id,
       prompt,
-      aspect_ratio: $('imageAspect').value || undefined,
-      quality: $('imageQuality').value || undefined,
-      background: $('imageBackground').value || undefined,
-      n: $('imageCount').value ? Number($('imageCount').value) : 1,
-      reference_image_url: $('imageReferenceUrl').value.trim() || undefined
+      aspect_ratio: $('imageAspect').value || '1:1'
     };
-    Object.keys(body).forEach(k => body[k] === undefined && delete body[k]);
-    const resp = await api('/api/generate-image', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-    renderImageResults(resp.data || []);
+
+    const resp = await api('/api/generate-image', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+
+    $('imageResults').innerHTML = '';
+    const card = document.createElement('div');
+    card.className = 'image-card';
+    card.innerHTML = `
+      <img src="${resp.imageUrl}" alt="Generated image" />
+      <div class="image-meta">
+        <span>${resp.width}×${resp.height} · seed ${resp.seed ?? '-'}</span>
+        <a class="button small" href="${resp.imageUrl}" target="_blank" rel="noopener">Open / Download</a>
+      </div>
+    `;
+    $('imageResults').appendChild(card);
     $('imageJobStatus').textContent = 'completed';
-    $('imageMessage').textContent = `Generated ${resp.data?.length || 0} image(s)${resp.usage?.cost != null ? ` · reported cost: $${resp.usage.cost}` : ''}.`;
+    $('imageMessage').textContent = `FLUX.1 Schnell · ${resp.aspect_ratio} · 4 steps · FREE ZeroGPU`;
   } catch (e) {
     $('imageJobStatus').textContent = 'failed';
+    $('imageResults').innerHTML = '<div class="empty">Image generation failed.</div>';
     $('imageMessage').textContent = e.message;
     alert(e.message);
   } finally {
-    $('generateImage').disabled = !state.selectedImage?.free;
-    $('generateImage').textContent = 'Generate image';
+    $('generateImage').disabled = !state.selectedImage;
+    $('generateImage').textContent = 'Generate free image';
   }
-}
-
-function renderImageResults(items) {
-  $('imageJobEmpty').classList.add('hidden');
-  const box = $('imageResults');
-  box.innerHTML = '';
-  if (!items.length) {
-    box.innerHTML = '<div class="empty">No image data returned.</div>';
-  } else {
-    items.forEach((item, idx) => {
-      const url = dataUrlFromImage(item);
-      const ext = (item.media_type || 'image/png').includes('svg') ? 'svg' : (item.media_type || 'image/png').split('/')[1] || 'png';
-      const card = document.createElement('div');
-      card.className = 'image-card';
-      card.innerHTML = `
-        <img src="${url}" alt="Generated image ${idx + 1}" />
-        <div class="image-meta">
-          <span>Image ${idx + 1}</span>
-          <a class="button small" href="${url}" download="veeno-image-${idx + 1}.${ext}">Download</a>
-        </div>
-      `;
-      box.appendChild(card);
-    });
-  }
-  box.classList.remove('hidden');
 }
 
 function initTabs() {
