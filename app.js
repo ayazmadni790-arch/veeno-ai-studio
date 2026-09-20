@@ -107,9 +107,9 @@ function updateVideoSelection() {
   state.selectedVideo = state.videoModels.find(m => m.id === id) || null;
   $('videoModelInfo').innerHTML = modelInfoHTML(state.selectedVideo);
   fillSelect($('videoDuration'), state.selectedVideo?.supported_durations, 'Provider default');
-  fillSelect($('videoResolution'), state.selectedVideo?.supported_resolutions, 'Provider default');
+  fillSelect($('videoResolution'), state.selectedVideo?.supported_resolutions, 'Low / Fast');
   fillSelect($('videoAspect'), state.selectedVideo?.supported_aspect_ratios, 'Provider default');
-  $('generateVideo').disabled = !state.selectedVideo || !state.selectedVideo.free;
+  $('generateVideo').disabled = !state.selectedVideo;
 }
 
 function updateImageSelection() {
@@ -125,7 +125,7 @@ function updateImageSelection() {
 }
 
 async function loadModels() {
-  setNotice('Loading live model catalogs from OpenRouter…');
+  setNotice('Checking free video access on Hugging Face ZeroGPU…');
   try {
     const data = await api('/api/models?type=all');
     state.videoModels = (data.videoModels || []).filter(m => m.free);
@@ -139,12 +139,12 @@ async function loadModels() {
     updateVideoSelection();
     updateImageSelection();
 
-    const freeVideos = state.videoModels.filter(m => m.free).length;
-    const freeImages = state.imageModels.filter(m => m.free).length;
-    if (freeVideos === 0 && freeImages === 0) {
-      setNotice('No verified free OpenRouter video or image generation model is available right now. Paid models are hidden completely.', 'bad');
+    const freeVideos = state.videoModels.length;
+    const freeImages = state.imageModels.length;
+    if (freeVideos > 0) {
+      setNotice(`Free video is LIVE: ${freeVideos} verified Hugging Face ZeroGPU model available. Image setup will be added next.`, 'ok');
     } else {
-      setNotice(`Verified free models available now: ${freeVideos} video / ${freeImages} image. Paid models are hidden completely.`, 'ok');
+      setNotice('Hugging Face video model is not available because HF_TOKEN is missing or the provider is unavailable.', 'bad');
     }
   } catch (e) {
     setNotice(e.message, 'bad');
@@ -153,82 +153,68 @@ async function loadModels() {
 
 async function generateVideo() {
   if (!state.selectedVideo) return;
-  if (!state.selectedVideo.free) return alert('This selected video model is premium/paid. This build currently allows free models only.');
   const prompt = $('videoPrompt').value.trim();
   if (prompt.length < 3) return alert('Please enter a prompt.');
 
   $('generateVideo').disabled = true;
-  $('generateVideo').textContent = 'Submitting…';
+  $('generateVideo').textContent = 'Generating on free GPU…';
+  $('videoJobEmpty').classList.add('hidden');
+  $('videoJobBox').classList.remove('hidden');
+  $('videoJobStatus').textContent = 'generating';
+  $('videoJobId').textContent = 'Hugging Face ZeroGPU · LTX-2.3';
+  $('videoJobMessage').textContent = 'Generating your video. Free ZeroGPU may queue during busy periods…';
+  $('videoProgressBar').style.width = '58%';
+  $('videoPreview').classList.add('hidden');
+  $('videoDownload').classList.add('hidden');
+  $('checkVideoNow').classList.add('hidden');
+
   try {
     const body = {
       model: state.selectedVideo.id,
       prompt,
-      duration: $('videoDuration').value ? Number($('videoDuration').value) : undefined,
-      resolution: $('videoResolution').value || undefined,
-      aspect_ratio: $('videoAspect').value || undefined,
-      generate_audio: $('videoAudio').value === 'true',
-      first_frame_url: $('videoFirstFrame').value.trim() || undefined,
-      reference_image_url: $('videoReferenceImage').value.trim() || undefined
+      duration: Number($('videoDuration').value || 1),
+      resolution: $('videoResolution').value || 'Low / Fast',
+      aspect_ratio: $('videoAspect').value || '16:9'
     };
-    Object.keys(body).forEach(k => body[k] === undefined && delete body[k]);
-    const job = await api('/api/generate-video', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+
+    const job = await api('/api/generate-video', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+
     state.videoJob = job;
-    localStorage.setItem('veenoLastVideoJob', JSON.stringify({ id: job.id, model: state.selectedVideo.id, at: Date.now() }));
-    showVideoJob(job);
-    startPolling();
+    $('videoJobStatus').textContent = 'completed';
+    $('videoJobId').textContent = `${job.model || 'LTX-2.3'} · seed ${job.seed ?? '-'}`;
+    $('videoProgressBar').style.width = '100%';
+    $('videoJobMessage').textContent = `${job.duration}s · ${job.aspect_ratio} · ${job.width}×${job.height} · native audio`;
+
+    $('videoPreview').src = job.videoUrl;
+    $('videoPreview').classList.remove('hidden');
+    $('videoPreview').load();
+    $('videoDownload').href = job.videoUrl;
+    $('videoDownload').target = '_blank';
+    $('videoDownload').classList.remove('hidden');
   } catch (e) {
+    $('videoJobStatus').textContent = 'failed';
+    $('videoProgressBar').style.width = '100%';
+    $('videoJobMessage').textContent = e.message;
     alert(e.message);
   } finally {
-    $('generateVideo').disabled = !state.selectedVideo?.free;
-    $('generateVideo').textContent = 'Generate video';
+    $('generateVideo').disabled = !state.selectedVideo;
+    $('generateVideo').textContent = 'Generate free video';
   }
 }
 
 function showVideoJob(job) {
   $('videoJobEmpty').classList.add('hidden');
   $('videoJobBox').classList.remove('hidden');
-  $('videoJobStatus').textContent = job.status || 'pending';
-  $('videoJobId').textContent = job.id || '';
-  $('videoJobMessage').textContent = 'Video jobs can take from around 30 seconds to several minutes.';
-  $('checkVideoNow').classList.remove('hidden');
-  updateVideoProgress(job.status);
+  $('videoJobStatus').textContent = job.status || 'idle';
 }
 
-function updateVideoProgress(status) {
-  const width = { pending:'18%', in_progress:'58%', completed:'100%', failed:'100%', cancelled:'100%', expired:'100%' }[status] || '10%';
-  $('videoProgressBar').style.width = width;
-}
-
-async function checkVideoJob() {
-  if (!state.videoJob?.id) return;
-  try {
-    const job = await api('/api/status?id=' + encodeURIComponent(state.videoJob.id));
-    state.videoJob = job;
-    $('videoJobStatus').textContent = job.status;
-    updateVideoProgress(job.status);
-    if (job.status === 'completed') {
-      clearInterval(state.pollTimer); state.pollTimer = null;
-      const src = '/api/content?id=' + encodeURIComponent(job.id) + '&index=0';
-      $('videoPreview').src = src;
-      $('videoPreview').classList.remove('hidden');
-      $('videoDownload').href = src;
-      $('videoDownload').classList.remove('hidden');
-      $('checkVideoNow').classList.add('hidden');
-      $('videoJobMessage').textContent = `Completed${job.usage?.cost != null ? ` · reported cost: $${job.usage.cost}` : ''}`;
-    } else if (['failed','cancelled','expired'].includes(job.status)) {
-      clearInterval(state.pollTimer); state.pollTimer = null;
-      $('videoJobMessage').textContent = job.error || `Job ${job.status}.`;
-    }
-  } catch (e) {
-    $('videoJobMessage').textContent = 'Status check: ' + e.message;
-  }
-}
-
-function startPolling() {
-  if (state.pollTimer) clearInterval(state.pollTimer);
-  checkVideoJob();
-  state.pollTimer = setInterval(checkVideoJob, 30000);
-}
+function updateVideoProgress() {}
+async function checkVideoJob() {}
+function startPolling() {}
 
 function dataUrlFromImage(item) {
   const media = item?.media_type || 'image/png';
@@ -335,13 +321,6 @@ $('saveSettings').addEventListener('click', (e) => {
   $('byokKey').value = sessionStorage.getItem('byokKey') || '';
   $('authMode').dispatchEvent(new Event('change'));
   initTabs();
-  const last = localStorage.getItem('veenoLastVideoJob');
-  if (last) {
-    try {
-      const j = JSON.parse(last);
-      state.videoJob = { id: j.id, status: 'pending' };
-      showVideoJob(state.videoJob);
-    } catch {}
-  }
+  localStorage.removeItem('veenoLastVideoJob');
   loadModels();
 })();
