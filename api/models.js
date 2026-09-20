@@ -12,7 +12,7 @@ function hfVideoModels() {
     premium: false,
     qualityScore: 90,
     qualityLabel: 'High quality',
-    supported_durations: [1,2,3,4],
+    supported_durations: [1,2,3,4,5,6,7,8,9,10],
     supported_resolutions: ['Low / Fast'],
     supported_aspect_ratios: ['16:9','9:16','1:1'],
     supports_audio: true,
