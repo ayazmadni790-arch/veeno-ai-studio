@@ -21,6 +21,25 @@ const DIMENSIONS = {
   '1:1': { width: 768, height: 768 }
 };
 
+const PRESET_PROMPTS = {
+  'veo-31': 'cinematic realism, natural physically believable motion, rich dynamic range, polished commercial composition',
+  'seedance-25': 'expressive camera movement, strong subject motion, energetic cinematic pacing, polished storytelling',
+  'wan-20': 'smooth fluid animation, coherent motion, atmospheric lighting, detailed cinematic environment',
+  'ltx-native': 'clean cinematic motion, coherent scene continuity, natural lighting'
+};
+
+function decodeDataUrl(dataUrl) {
+  const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(String(dataUrl || ''));
+  if (!match) return null;
+  const buffer = Buffer.from(match[2], 'base64');
+  if (!buffer.length || buffer.length > 3_000_000) {
+    const err = new Error('Reference image is too large. Please use an image under 3 MB after compression.');
+    err.status = 413;
+    throw err;
+  }
+  return { mime: match[1], buffer };
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { ok:false, error:'Method not allowed' });
 
@@ -36,23 +55,37 @@ module.exports = async function handler(req, res) {
       return send(res, 400, { ok:false, error:'Prompt must be between 3 and 1800 characters.' });
     }
 
-    const duration = Number(body.duration || 3);
-    if (!Number.isFinite(duration) || duration < 1 || duration > 10) {
-      return send(res, 400, { ok:false, error:'LTX-2.3 supports video duration from 1 to 10 seconds.' });
+    const duration = Number(body.duration || 5);
+    if (![5,8,10].includes(duration)) {
+      return send(res, 400, { ok:false, error:'Choose a 5, 8, or 10 second duration.' });
     }
 
     const aspect = ['16:9','9:16','1:1'].includes(String(body.aspect_ratio)) ? String(body.aspect_ratio) : '16:9';
     const { width, height } = DIMENSIONS[aspect];
+    const mode = body.mode === 'image-to-video' ? 'image-to-video' : 'text-to-video';
+    const preset = Object.prototype.hasOwnProperty.call(PRESET_PROMPTS, String(body.preset)) ? String(body.preset) : 'ltx-native';
+
     const seed = Number.isInteger(Number(body.seed))
       ? Math.max(0, Math.min(2147483647, Number(body.seed)))
       : Math.floor(Math.random() * 2147483647);
 
-    const { Client } = await import('@gradio/client');
-    const app = await Client.connect('Lightricks/LTX-2-3', { hf_token: token });
+    const enhancedPrompt = `${prompt}. Visual direction: ${PRESET_PROMPTS[preset]}.`;
+
+    const gradio = await import('@gradio/client');
+    const app = await gradio.Client.connect('Lightricks/LTX-2-3', { hf_token: token });
+
+    let inputImage = null;
+    if (mode === 'image-to-video') {
+      const decoded = decodeDataUrl(body.image_data);
+      if (!decoded) {
+        return send(res, 400, { ok:false, error:'Please upload an image for Image to Video mode.' });
+      }
+      inputImage = gradio.handle_file(decoded.buffer);
+    }
 
     const result = await app.predict('/generate_video', {
-      input_image: null,
-      prompt,
+      input_image: inputImage,
+      prompt: enhancedPrompt,
       duration,
       enhance_prompt: false,
       seed,
@@ -82,7 +115,9 @@ module.exports = async function handler(req, res) {
       id:`hf-${Date.now()}`,
       status:'completed',
       provider:'Hugging Face ZeroGPU',
-      model:'Lightricks/LTX-2-3',
+      engine:'Lightricks/LTX-2-3',
+      preset,
+      mode,
       prompt,
       duration,
       aspect_ratio:aspect,
