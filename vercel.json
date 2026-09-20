@@ -2,12 +2,6 @@
   "functions": {
     "api/*.js": {
       "maxDuration": 60
-    },
-    "api/generate-video.js": {
-      "maxDuration": 300
-    },
-    "api/test-hf-video.js": {
-      "maxDuration": 300
     }
   },
   "headers": [
