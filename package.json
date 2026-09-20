@@ -2,6 +2,11 @@
   "name": "veeno-ai-studio",
   "version": "2.0.0",
   "private": true,
-  "description": "Veeno AI - browser-based OpenRouter video and image studio with free-first protection",
-  "engines": { "node": ">=18" }
+  "description": "Veeno AI - free-only AI media studio",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@gradio/client": "^1.14.0"
+  }
 }
