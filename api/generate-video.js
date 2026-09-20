@@ -36,9 +36,9 @@ module.exports = async function handler(req, res) {
       return send(res, 400, { ok:false, error:'Prompt must be between 3 and 1800 characters.' });
     }
 
-    const duration = Number(body.duration || 1);
-    if (![1,2,3,4].includes(duration)) {
-      return send(res, 400, { ok:false, error:'For the free Vercel/ZeroGPU setup, duration must be 1, 2, 3, or 4 seconds.' });
+    const duration = Number(body.duration || 3);
+    if (!Number.isFinite(duration) || duration < 1 || duration > 10) {
+      return send(res, 400, { ok:false, error:'LTX-2.3 supports video duration from 1 to 10 seconds.' });
     }
 
     const aspect = ['16:9','9:16','1:1'].includes(String(body.aspect_ratio)) ? String(body.aspect_ratio) : '16:9';
