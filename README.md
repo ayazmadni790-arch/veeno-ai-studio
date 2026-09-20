@@ -1,50 +1,36 @@
 # veeno ai
 
-A browser-based OpenRouter dashboard for **video generation** and **image generation**.
+A browser-based **free-only** video and image generation dashboard.
 
-## What this version includes
+## Current rule
 
-- Brand/UI name updated to **veeno ai**
-- Responsive dashboard for **mobile and desktop**
-- **Video Studio** + **Image Studio** in one project
-- Live model loading from OpenRouter
-- Models sorted with **free-first** and **quality-first** logic
-- OpenAI/ChatGPT image models are listed when available through OpenRouter
-- Owner-key mode and BYOK mode
-- Video generation uses OpenRouter's async video API
-- Image generation uses OpenRouter's image API and shows downloadable results
+- Only media models that the live provider catalog reports as **zero-price / free** are returned by the backend.
+- Paid and premium media models are **not shown at all**.
+- If no verified free video or image model is currently available, the UI says so instead of showing paid alternatives.
+- Generation endpoints still re-check the selected model and reject anything that is not verified free.
 
-## Important behavior
+## Features
 
-- This build is **free-first**.
-- Free models are listed first.
-- Premium / paid models are also listed for comparison and future use, but **generation is blocked for paid models** in this build to avoid surprise charges.
-- If you later want a paid-enabled version, that can be added separately.
+- Responsive mobile + desktop dashboard
+- Video Studio + Image Studio
+- Live OpenRouter media-catalog checks
+- Owner API key stored server-side in Vercel
+- Optional BYOK mode
+- No paid fallback and no paid model listings
 
-## Vercel deployment
+## Vercel
 
-1. Upload this folder to GitHub or import directly into Vercel.
-2. In **Vercel → Project Settings → Environment Variables**, add:
-   - `OPENROUTER_API_KEY` = your OpenRouter key (`sk-or-v1-...`)
-   - `APP_ACCESS_CODE` = optional private access code
-   - `APP_PUBLIC_URL` = your final site URL (optional but recommended)
-3. Deploy.
-4. Open the site.
-5. Click **API / Access**.
-6. Choose **Use site owner key** or **Use my own OpenRouter key**.
-7. Click **Save & check**.
+Required environment variable:
 
-## Current endpoints used
+- `OPENROUTER_API_KEY`
 
-- `GET /api/v1/videos/models`
-- `POST /api/v1/videos`
-- `GET /api/v1/videos/{id}`
-- `GET /api/v1/videos/{id}/content`
-- `GET /api/v1/models?output_modalities=image`
-- `GET /api/v1/images/models`
-- `POST /api/v1/images`
+Optional:
 
-## Notes
+- `APP_ACCESS_CODE`
+- `APP_PUBLIC_URL`
 
-- Some image models may be listed but not truly free.
-- OpenAI GPT-image models are usually premium/paid on OpenRouter, so this build lists them clearly but blocks generation unless you later request a premium-enabled version.
+After changing environment variables, redeploy the project.
+
+## Important
+
+A model being available in OpenRouter does not mean it is free. Veeno AI filters paid media models out completely.
