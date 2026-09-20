@@ -12,9 +12,9 @@
   <div class="shell">
     <header class="topbar">
       <div>
-        <div class="eyebrow">OPENROUTER · FREE-ONLY STUDIO</div>
+        <div class="eyebrow">HUGGING FACE ZEROGPU · FREE VIDEO</div>
         <h1 class="brand-title">veeno ai</h1>
-        <p class="lead">One responsive dashboard for <strong>Video Generation</strong> and <strong>Image Generation</strong>. Only currently verified free models are shown; paid models are hidden completely.</p>
+        <p class="lead">Free <strong>Video Generation</strong> is now live with Lightricks LTX-2.3 on Hugging Face ZeroGPU. Image generation will be connected next.</p>
       </div>
       <div class="top-actions">
         <button id="refreshAll" class="ghost">Refresh models</button>
@@ -28,7 +28,7 @@
       <article class="mini-card">
         <div class="mini-label">Mode</div>
         <div class="mini-value">Free-only</div>
-        <p>Only verified free models are shown. Paid models never appear in the dropdowns.</p>
+        <p>Only the verified working free video route is enabled. No paid video models are shown.</p>
       </article>
       <article class="mini-card">
         <div class="mini-label">Devices</div>
@@ -37,14 +37,14 @@
       </article>
       <article class="mini-card">
         <div class="mini-label">Sections</div>
-        <div class="mini-value">Video + Image</div>
-        <p>One tool, two generation workflows, same API/access settings.</p>
+        <div class="mini-value">Video Live</div>
+        <p>Text-to-video is live now. Image generation is the next setup step.</p>
       </article>
     </section>
 
     <div class="tabs">
       <button class="tab active" data-tab="videoTab">Video Studio</button>
-      <button class="tab" data-tab="imageTab">Image Studio</button>
+      <button class="tab" data-tab="imageTab">Image Studio (next)</button>
     </div>
 
     <main>
@@ -53,7 +53,7 @@
           <div class="panel-left">
             <div class="section-head">
               <h2>Video model</h2>
-              <span class="subpill">Verified free only</span>
+              <span class="subpill">ZeroGPU · FREE</span>
             </div>
             <label for="videoModel">Choose video model</label>
             <select id="videoModel"></select>
@@ -77,26 +77,16 @@
               </div>
               <div>
                 <label for="videoAudio">Audio</label>
-                <select id="videoAudio"><option value="false">Off</option><option value="true">On</option></select>
+                <select id="videoAudio"><option value="true">Native audio · On</option></select>
               </div>
             </div>
 
             <details>
-              <summary>Optional image guidance</summary>
-              <div class="grid2 padtop">
-                <div>
-                  <label for="videoFirstFrame">First-frame image URL</label>
-                  <input id="videoFirstFrame" placeholder="https://…/first-frame.jpg" />
-                </div>
-                <div>
-                  <label for="videoReferenceImage">Reference image URL</label>
-                  <input id="videoReferenceImage" placeholder="https://…/reference.jpg" />
-                </div>
-              </div>
-              <p class="hint">If both are supplied, first-frame guidance is preferred.</p>
+              <summary>About this free video mode</summary>
+              <p class="hint">LTX-2.3 generates video with native synchronized audio on Hugging Face ZeroGPU. The current Veeno AI preset uses low resolution and 1–4 second clips for better reliability on free hosting. Free quota and queue capacity are controlled by Hugging Face.</p>
             </details>
 
-            <button id="generateVideo" class="primary wide">Generate video</button>
+            <button id="generateVideo" class="primary wide">Generate free video</button>
           </div>
 
           <div class="panel-right">
@@ -175,14 +165,14 @@
     </main>
 
     <footer>
-      veeno ai checks OpenRouter media catalogs live and displays only models verified as free at that moment. Paid models are hidden.
+      Veeno AI video generation uses Lightricks LTX-2.3 through Hugging Face ZeroGPU. Free usage is subject to Hugging Face quota and GPU availability.
     </footer>
   </div>
 
   <dialog id="settingsDialog">
     <form method="dialog" class="dialogbox">
       <div class="section-head"><h2>API / Access</h2><button class="icon">×</button></div>
-      <p class="hint">Recommended: keep your owner key on Vercel as <code>OPENROUTER_API_KEY</code>. Friends can use BYOK if you want them to use their own quota.</p>
+      <p class="hint">Video generation uses the server-side <code>HF_TOKEN</code>. An optional site access code can protect your free ZeroGPU quota.</p>
       <label for="authMode">Mode</label>
       <select id="authMode">
         <option value="owner">Use site owner key</option>
