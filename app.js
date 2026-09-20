@@ -36,22 +36,25 @@ function fillSelect(el, items, fallback='Auto') {
 }
 
 function groupLabel(model) {
-  if (model.kind === 'video') {
-    if (model.free) return 'Free video models';
-    return 'Premium video models (listed only)';
-  }
-  if (model.free) return 'Free image models';
-  if (model.openai) return 'OpenAI / ChatGPT image models (paid)';
-  return 'Other premium image models';
+  return model.kind === 'video' ? 'Verified free video models' : 'Verified free image models';
 }
 
 function optionText(model) {
-  const tag = model.free ? 'FREE' : 'PAID';
-  return `${model.qualityLabel} · ${tag} · ${model.label}`;
+  return `${model.qualityLabel} · FREE · ${model.label}`;
 }
 
-function populateGroupedSelect(selectEl, models, selectedId) {
+function populateGroupedSelect(selectEl, models, selectedId, emptyText='No verified free model available') {
   selectEl.innerHTML = '';
+  if (!models || !models.length) {
+    const op = document.createElement('option');
+    op.value = '';
+    op.textContent = emptyText;
+    op.selected = true;
+    selectEl.appendChild(op);
+    selectEl.disabled = true;
+    return;
+  }
+  selectEl.disabled = false;
   const groups = new Map();
   for (const model of models) {
     const label = groupLabel(model);
@@ -74,7 +77,7 @@ function populateGroupedSelect(selectEl, models, selectedId) {
 
 function modelInfoHTML(model) {
   if (!model) return '<div class="hint">No model selected.</div>';
-  const priceState = model.free ? 'FREE in current catalog' : 'PAID / premium in current catalog';
+  const priceState = 'FREE (verified zero-price in current catalog)';
   const capabilityBits = model.kind === 'video'
     ? [
         ['Quality', model.qualityLabel],
@@ -94,7 +97,7 @@ function modelInfoHTML(model) {
   return `
     <div class="line"><span>Model</span><span>${model.label}</span></div>
     ${capabilityBits.map(([k,v]) => `<div class="line"><span>${k}</span><span>${v}</span></div>`).join('')}
-    <div class="line"><span>Status</span><span><span class="pill ${model.free ? 'free' : 'paid'}">${model.free ? 'FREE' : 'PAID'}</span></span></div>
+    <div class="line"><span>Status</span><span><span class="pill free">FREE</span></span></div>
     <div class="summary">${model.description || 'No description available.'}</div>
   `;
 }
@@ -125,21 +128,24 @@ async function loadModels() {
   setNotice('Loading live model catalogs from OpenRouter…');
   try {
     const data = await api('/api/models?type=all');
-    state.videoModels = data.videoModels || [];
-    state.imageModels = data.imageModels || [];
+    state.videoModels = (data.videoModels || []).filter(m => m.free);
+    state.imageModels = (data.imageModels || []).filter(m => m.free);
 
-    const preferredVideo = state.videoModels.find(m => m.free) || state.videoModels[0];
-    const preferredImage = state.imageModels.find(m => m.free) || state.imageModels.find(m => m.openai) || state.imageModels[0];
+    const preferredVideo = state.videoModels[0] || null;
+    const preferredImage = state.imageModels[0] || null;
 
-    populateGroupedSelect($('videoModel'), state.videoModels, preferredVideo?.id);
-    populateGroupedSelect($('imageModel'), state.imageModels, preferredImage?.id);
+    populateGroupedSelect($('videoModel'), state.videoModels, preferredVideo?.id, 'No verified free video model available');
+    populateGroupedSelect($('imageModel'), state.imageModels, preferredImage?.id, 'No verified free image model available');
     updateVideoSelection();
     updateImageSelection();
 
     const freeVideos = state.videoModels.filter(m => m.free).length;
     const freeImages = state.imageModels.filter(m => m.free).length;
-    const paidOpenAIImages = state.imageModels.filter(m => m.openai && !m.free).length;
-    setNotice(`Loaded ${state.videoModels.length} video model(s) and ${state.imageModels.length} image model(s). Free now: ${freeVideos} video / ${freeImages} image. OpenAI image models listed for future use: ${paidOpenAIImages}.`, 'ok');
+    if (freeVideos === 0 && freeImages === 0) {
+      setNotice('No verified free OpenRouter video or image generation model is available right now. Paid models are hidden completely.', 'bad');
+    } else {
+      setNotice(`Verified free models available now: ${freeVideos} video / ${freeImages} image. Paid models are hidden completely.`, 'ok');
+    }
   } catch (e) {
     setNotice(e.message, 'bad');
   }
