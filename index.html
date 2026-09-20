@@ -3,124 +3,145 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Veeno AI</title>
+  <title>Veeno AI Studio</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <div class="bg-orb orb1"></div>
-  <div class="bg-orb orb2"></div>
-  <div class="shell">
-    <header class="topbar">
+  <div class="aurora aurora-a"></div>
+  <div class="aurora aurora-b"></div>
+  <div class="grid-glow"></div>
+
+  <div class="app-shell">
+    <header class="hero glass">
       <div>
-        <div class="eyebrow">HUGGING FACE ZEROGPU · FREE VIDEO + IMAGE</div>
-        <h1 class="brand-title">veeno ai</h1>
-        <p class="lead">Free <strong>Video Generation</strong> with LTX-2.3 and <strong>Image Generation</strong> with FLUX.1 Schnell are live on Hugging Face ZeroGPU.</p>
+        <div class="eyebrow">VEENO AI · FREE CREATIVE STUDIO</div>
+        <h1>veeno ai</h1>
+        <p>Create cinematic AI videos and high-quality images from one clean studio.</p>
       </div>
-      <div class="top-actions">
-        <button id="refreshAll" class="ghost">Refresh models</button>
-        <button id="settingsBtn" class="primary">API / Access</button>
+      <div class="hero-actions">
+        <button id="refreshAll" class="btn btn-ghost">Refresh</button>
+        <button id="settingsBtn" class="btn btn-primary">Access</button>
       </div>
     </header>
 
-    <div id="notice" class="notice">Loading live video and image model catalogs…</div>
+    <div id="notice" class="notice glass">Checking free AI engines…</div>
 
-    <section class="hero-cards">
-      <article class="mini-card">
-        <div class="mini-label">Mode</div>
-        <div class="mini-value">Free-only</div>
-        <p>Only the verified working free video route is enabled. No paid video models are shown.</p>
-      </article>
-      <article class="mini-card">
-        <div class="mini-label">Devices</div>
-        <div class="mini-value">Mobile + PC</div>
-        <p>Responsive dashboard with stacked layout on small screens.</p>
-      </article>
-      <article class="mini-card">
-        <div class="mini-label">Sections</div>
-        <div class="mini-value">Video + Image Live</div>
-        <p>Text-to-video and text-to-image are both live through verified free ZeroGPU routes.</p>
-      </article>
-    </section>
-
-    <div class="tabs">
+    <nav class="studio-tabs glass">
       <button class="tab active" data-tab="videoTab">Video Studio</button>
       <button class="tab" data-tab="imageTab">Image Studio</button>
-    </div>
+    </nav>
 
     <main>
       <section id="videoTab" class="tabpanel active">
-        <div class="panel grid-layout">
-          <div class="panel-left">
-            <div class="section-head">
-              <h2>Video model</h2>
-              <span class="subpill">ZeroGPU · FREE</span>
+        <div class="workspace">
+          <section class="creator glass">
+            <div class="section-title">
+              <div>
+                <span class="section-kicker">VIDEO CREATION</span>
+                <h2>Generate video</h2>
+              </div>
+              <span class="status-chip">FREE ZeroGPU</span>
             </div>
-            <label for="videoModel">Choose video model</label>
-            <select id="videoModel"></select>
-            <div id="videoModelInfo" class="info-card"></div>
+
+            <div class="mode-switch">
+              <button id="textToVideoBtn" class="mode-btn active" type="button">Text to Video</button>
+              <button id="imageToVideoBtn" class="mode-btn" type="button">Image to Video</button>
+            </div>
+
+            <label for="videoPreset">Creative model</label>
+            <select id="videoPreset">
+              <option value="veo-31">Veo 3.1 · Cinematic</option>
+              <option value="seedance-25">Seedance 2.5 · Dynamic</option>
+              <option value="wan-20">Wan 2.0 · Smooth Motion</option>
+              <option value="ltx-native">LTX-2.3 · Native</option>
+            </select>
+            <p class="microcopy">Creative presets change prompt direction; generation is powered by the verified free LTX-2.3 engine.</p>
+
+            <div id="imageUploadBlock" class="upload-block hidden">
+              <label for="videoInputImage">Reference image</label>
+              <label class="dropzone" for="videoInputImage">
+                <input id="videoInputImage" type="file" accept="image/*" />
+                <div id="uploadIdle">
+                  <span class="upload-icon">✦</span>
+                  <strong>Choose an image</strong>
+                  <small>JPG, PNG or WebP · under 3 MB recommended</small>
+                </div>
+                <img id="inputImagePreview" class="hidden" alt="Reference preview" />
+              </label>
+            </div>
 
             <label for="videoPrompt">Prompt</label>
-            <textarea id="videoPrompt" rows="8" placeholder="Describe the subject, movement, camera angle, lighting, style, mood and environment…"></textarea>
+            <textarea id="videoPrompt" rows="7" placeholder="Describe the scene, subject, motion, camera, lighting, atmosphere and style…"></textarea>
 
-            <div class="grid4">
+            <div class="controls-grid three">
               <div>
                 <label for="videoDuration">Duration</label>
-                <select id="videoDuration"></select>
-              </div>
-              <div>
-                <label for="videoResolution">Resolution</label>
-                <select id="videoResolution"></select>
+                <select id="videoDuration">
+                  <option value="5">5 seconds</option>
+                  <option value="8">8 seconds</option>
+                  <option value="10">10 seconds</option>
+                </select>
               </div>
               <div>
                 <label for="videoAspect">Aspect ratio</label>
-                <select id="videoAspect"></select>
+                <select id="videoAspect">
+                  <option value="16:9">16:9 · Landscape</option>
+                  <option value="9:16">9:16 · Portrait</option>
+                  <option value="1:1">1:1 · Square</option>
+                </select>
               </div>
               <div>
                 <label for="videoAudio">Audio</label>
-                <select id="videoAudio"><option value="true">Native audio · On</option></select>
+                <select id="videoAudio" disabled>
+                  <option>Native audio · On</option>
+                </select>
               </div>
             </div>
 
-            <details>
-              <summary>About this free video mode</summary>
-              <p class="hint">LTX-2.3 generates video with native synchronized audio on Hugging Face ZeroGPU. Veeno AI supports 1–10 second clips on this model. Longer clips use more ZeroGPU time and can take longer in the free queue. Free quota and queue capacity are controlled by Hugging Face.</p>
-            </details>
+            <button id="generateVideo" class="btn btn-generate">Generate Video</button>
+          </section>
 
-            <button id="generateVideo" class="primary wide">Generate free video</button>
-          </div>
-
-          <div class="panel-right">
-            <div class="section-head">
-              <h2>Video job</h2>
+          <section class="result glass">
+            <div class="section-title">
+              <div>
+                <span class="section-kicker">OUTPUT</span>
+                <h2>Video result</h2>
+              </div>
               <span id="videoJobStatus" class="badge">idle</span>
             </div>
-            <div id="videoJobEmpty" class="empty">No video job submitted yet.</div>
-            <div id="videoJobBox" class="hidden">
-              <div class="statusrow"><span id="videoJobId"></span><button id="checkVideoNow" class="ghost small hidden">Check now</button></div>
-              <div class="progress"><div id="videoProgressBar"></div></div>
-              <p id="videoJobMessage" class="hint"></p>
-              <video id="videoPreview" class="hidden" controls playsinline></video>
-              <div class="actions"><a id="videoDownload" class="button hidden" download>Download MP4</a></div>
+            <div id="videoJobEmpty" class="empty-state">
+              <div class="orb-icon">▶</div>
+              <p>Your generated video will appear here.</p>
             </div>
-          </div>
+            <div id="videoJobBox" class="hidden">
+              <div class="progress"><div id="videoProgressBar"></div></div>
+              <p id="videoJobId" class="result-title"></p>
+              <p id="videoJobMessage" class="microcopy"></p>
+              <video id="videoPreview" class="media-preview hidden" controls playsinline></video>
+              <button id="videoDownload" class="btn btn-download hidden" type="button">Download MP4</button>
+            </div>
+          </section>
         </div>
       </section>
 
       <section id="imageTab" class="tabpanel">
-        <div class="panel grid-layout">
-          <div class="panel-left">
-            <div class="section-head">
-              <h2>Image model</h2>
-              <span class="subpill">ZeroGPU · FREE</span>
+        <div class="workspace">
+          <section class="creator glass">
+            <div class="section-title">
+              <div>
+                <span class="section-kicker">IMAGE CREATION</span>
+                <h2>Generate image</h2>
+              </div>
+              <span class="status-chip">FREE ZeroGPU</span>
             </div>
-            <label for="imageModel">Choose image model</label>
+
+            <label for="imageModel">Image model</label>
             <select id="imageModel"></select>
-            <div id="imageModelInfo" class="info-card"></div>
 
             <label for="imagePrompt">Prompt</label>
-            <textarea id="imagePrompt" rows="8" placeholder="Describe the image clearly: subject, style, composition, colors, lighting, text if any, and aspect ratio intent…"></textarea>
+            <textarea id="imagePrompt" rows="7" placeholder="Describe the subject, composition, lighting, colors, style and details…"></textarea>
 
-            <div class="grid4">
+            <div class="controls-grid two">
               <div>
                 <label for="imageAspect">Aspect ratio</label>
                 <select id="imageAspect"></select>
@@ -129,65 +150,41 @@
                 <label for="imageQuality">Quality</label>
                 <select id="imageQuality"></select>
               </div>
-              <div>
-                <label for="imageBackground">Background</label>
-                <select id="imageBackground"></select>
-              </div>
-              <div>
-                <label for="imageCount">Images</label>
-                <select id="imageCount"></select>
-              </div>
             </div>
 
-            <details>
-              <summary>Optional reference image</summary>
-              <div class="padtop">
-                <label for="imageReferenceUrl">Reference image URL</label>
-                <input id="imageReferenceUrl" placeholder="https://…/reference.png" />
-                <p class="hint">Useful for image editing or style guidance on models that support references.</p>
+            <button id="generateImage" class="btn btn-generate">Generate Image</button>
+          </section>
+
+          <section class="result glass">
+            <div class="section-title">
+              <div>
+                <span class="section-kicker">OUTPUT</span>
+                <h2>Image result</h2>
               </div>
-            </details>
-
-            <button id="generateImage" class="primary wide">Generate free image</button>
-          </div>
-
-          <div class="panel-right">
-            <div class="section-head">
-              <h2>Image results</h2>
               <span id="imageJobStatus" class="badge">idle</span>
             </div>
-            <div id="imageJobEmpty" class="empty">No image generated yet.</div>
-            <div id="imageResults" class="image-grid hidden"></div>
-            <p id="imageMessage" class="hint"></p>
-          </div>
+            <div id="imageJobEmpty" class="empty-state">
+              <div class="orb-icon">✦</div>
+              <p>Your generated image will appear here.</p>
+            </div>
+            <div id="imageResults" class="image-results hidden"></div>
+            <p id="imageMessage" class="microcopy"></p>
+          </section>
         </div>
       </section>
     </main>
-
-    <footer>
-      Veeno AI uses Lightricks LTX-2.3 for free video and FLUX.1 Schnell for free images through Hugging Face ZeroGPU. Free usage is subject to Hugging Face quota and GPU availability.
-    </footer>
   </div>
 
   <dialog id="settingsDialog">
-    <form method="dialog" class="dialogbox">
-      <div class="section-head"><h2>API / Access</h2><button class="icon">×</button></div>
-      <p class="hint">Video generation uses the server-side <code>HF_TOKEN</code>. An optional site access code can protect your free ZeroGPU quota.</p>
-      <label for="authMode">Mode</label>
-      <select id="authMode">
-        <option value="owner">Use site owner key</option>
-        <option value="byok">Use my own OpenRouter key</option>
-      </select>
-      <div id="ownerFields">
-        <label for="accessCode">Access code (only if site owner configured one)</label>
-        <input id="accessCode" type="password" autocomplete="off" placeholder="Optional access code" />
+    <form method="dialog" class="dialog-card">
+      <div class="section-title">
+        <div><span class="section-kicker">SECURITY</span><h2>Access settings</h2></div>
+        <button class="close-btn" value="cancel">×</button>
       </div>
-      <div id="byokFields" class="hidden">
-        <label for="byokKey">Your OpenRouter API key</label>
-        <input id="byokKey" type="password" autocomplete="off" placeholder="sk-or-v1-…" />
-        <p class="hint">Stored only in this browser session.</p>
-      </div>
-      <button id="saveSettings" class="primary" value="default">Save & check</button>
+      <p class="microcopy">Generation uses server-side Hugging Face access. If you configured an app access code in Vercel, enter it here.</p>
+      <label for="accessCode">Access code</label>
+      <input id="accessCode" type="password" autocomplete="off" placeholder="Optional access code" />
+      <button id="saveSettings" class="btn btn-primary" value="default">Save</button>
     </form>
   </dialog>
 
