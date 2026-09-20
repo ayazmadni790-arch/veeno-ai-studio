@@ -1,56 +1,102 @@
-const { API_BASE, json, getAuth, headers, readJson, getVideoCatalog, ensureHttpUrl } = require('./_shared');
+function send(res, status, body) {
+  res.status(status).setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.end(JSON.stringify(body));
+}
+
+function checkAccess(req) {
+  const required = String(process.env.APP_ACCESS_CODE || '');
+  if (!required) return;
+  const supplied = String(req.headers['x-app-access-code'] || '');
+  if (supplied !== required) {
+    const err = new Error('Invalid app access code.');
+    err.status = 401;
+    throw err;
+  }
+}
+
+const DIMENSIONS = {
+  '16:9': { width: 768, height: 512 },
+  '9:16': { width: 512, height: 768 },
+  '1:1': { width: 768, height: 768 }
+};
 
 module.exports = async function handler(req, res) {
-  if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
+  if (req.method !== 'POST') return send(res, 405, { ok:false, error:'Method not allowed' });
+
   try {
-    const { key, mode } = getAuth(req);
+    checkAccess(req);
+
+    const token = String(process.env.HF_TOKEN || '').trim();
+    if (!token) return send(res, 500, { ok:false, error:'HF_TOKEN is not configured in Vercel.' });
+
     const body = req.body && typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
-    const model = String(body.model || '').trim();
     const prompt = String(body.prompt || '').trim();
-
-    if (!model) return json(res, 400, { error: 'Model is required.' });
-    if (prompt.length < 3 || prompt.length > 5000) return json(res, 400, { error: 'Prompt must be between 3 and 5000 characters.' });
-
-    const catalog = await getVideoCatalog(key);
-    const live = catalog.find(m => m.id === model);
-    if (!live) return json(res, 404, { error: 'Selected video model is not currently advertised by OpenRouter.' });
-    if (!live.free) {
-      return json(res, 409, { error: 'This build is currently free-first. The selected video model is premium/paid and was blocked.', model });
+    if (prompt.length < 3 || prompt.length > 1800) {
+      return send(res, 400, { ok:false, error:'Prompt must be between 3 and 1800 characters.' });
     }
 
-    const payload = { model, prompt };
-
-    const duration = Number(body.duration);
-    if (Number.isInteger(duration) && duration > 0) {
-      if (live.supported_durations.length && !live.supported_durations.includes(duration)) return json(res, 400, { error: `Duration ${duration}s is not supported.`, allowed: live.supported_durations });
-      payload.duration = duration;
+    const duration = Number(body.duration || 1);
+    if (![1,2,3,4].includes(duration)) {
+      return send(res, 400, { ok:false, error:'For the free Vercel/ZeroGPU setup, duration must be 1, 2, 3, or 4 seconds.' });
     }
 
-    const resolution = String(body.resolution || '').trim();
-    if (resolution) {
-      if (live.supported_resolutions.length && !live.supported_resolutions.includes(resolution)) return json(res, 400, { error: `Resolution ${resolution} is not supported.`, allowed: live.supported_resolutions });
-      payload.resolution = resolution;
+    const aspect = ['16:9','9:16','1:1'].includes(String(body.aspect_ratio)) ? String(body.aspect_ratio) : '16:9';
+    const { width, height } = DIMENSIONS[aspect];
+    const seed = Number.isInteger(Number(body.seed))
+      ? Math.max(0, Math.min(2147483647, Number(body.seed)))
+      : Math.floor(Math.random() * 2147483647);
+
+    const { Client } = await import('@gradio/client');
+    const app = await Client.connect('Lightricks/LTX-2-3', { hf_token: token });
+
+    const result = await app.predict('/generate_video', {
+      input_image: null,
+      prompt,
+      duration,
+      enhance_prompt: false,
+      seed,
+      randomize_seed: false,
+      height,
+      width
+    });
+
+    const output = result?.data?.[0] ?? null;
+    const usedSeed = result?.data?.[1] ?? seed;
+    const videoUrl =
+      (typeof output === 'string' ? output : null) ||
+      output?.url ||
+      output?.path ||
+      null;
+
+    if (!videoUrl) {
+      return send(res, 502, {
+        ok:false,
+        error:'LTX-2.3 finished without returning a playable video URL.',
+        details: output
+      });
     }
 
-    const aspectRatio = String(body.aspect_ratio || '').trim();
-    if (aspectRatio) {
-      if (live.supported_aspect_ratios.length && !live.supported_aspect_ratios.includes(aspectRatio)) return json(res, 400, { error: `Aspect ratio ${aspectRatio} is not supported.`, allowed: live.supported_aspect_ratios });
-      payload.aspect_ratio = aspectRatio;
-    }
-
-    if (typeof body.generate_audio === 'boolean') payload.generate_audio = body.generate_audio;
-
-    const firstFrameUrl = ensureHttpUrl(body.first_frame_url, 'First-frame');
-    if (firstFrameUrl) payload.frame_images = [{ type: 'image_url', image_url: { url: firstFrameUrl }, frame_type: 'first_frame' }];
-
-    const referenceUrl = ensureHttpUrl(body.reference_image_url, 'Reference-image');
-    if (referenceUrl && !firstFrameUrl) payload.input_references = [{ type: 'image_url', image_url: { url: referenceUrl } }];
-
-    const r = await fetch(`${API_BASE}/videos`, { method: 'POST', headers: headers(key, true), body: JSON.stringify(payload) });
-    const data = await readJson(r);
-    if (!r.ok) return json(res, r.status, { error: data?.error?.message || data?.message || `Generation request failed (${r.status})`, details: data });
-    return json(res, 202, { ...data, authMode: mode });
-  } catch (e) {
-    return json(res, e.status || 500, { error: e.message, details: e.details || undefined });
+    return send(res, 200, {
+      ok:true,
+      id:`hf-${Date.now()}`,
+      status:'completed',
+      provider:'Hugging Face ZeroGPU',
+      model:'Lightricks/LTX-2-3',
+      prompt,
+      duration,
+      aspect_ratio:aspect,
+      width,
+      height,
+      seed:usedSeed,
+      audio:true,
+      videoUrl
+    });
+  } catch (error) {
+    return send(res, error?.status || 500, {
+      ok:false,
+      error:error?.message || String(error),
+      hint:'Free ZeroGPU can be busy or the Hugging Face daily quota can be exhausted. Retry later if the error mentions queue, quota, capacity, or timeout.'
+    });
   }
 };
