@@ -1,47 +1,98 @@
-const { API_BASE, json, getAuth, headers, readJson, getImageCatalog, ensureHttpUrl } = require('./_shared');
+function send(res, status, body) {
+  res.status(status).setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.end(JSON.stringify(body));
+}
+
+function checkAccess(req) {
+  const required = String(process.env.APP_ACCESS_CODE || '');
+  if (!required) return;
+  const supplied = String(req.headers['x-app-access-code'] || '');
+  if (supplied !== required) {
+    const err = new Error('Invalid app access code.');
+    err.status = 401;
+    throw err;
+  }
+}
+
+const DIMENSIONS = {
+  '1:1': { width: 1024, height: 1024 },
+  '16:9': { width: 1024, height: 576 },
+  '9:16': { width: 576, height: 1024 },
+  '4:3': { width: 1024, height: 768 },
+  '3:4': { width: 768, height: 1024 }
+};
 
 module.exports = async function handler(req, res) {
-  if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
+  if (req.method !== 'POST') return send(res, 405, { ok:false, error:'Method not allowed' });
+
   try {
-    const { key, mode } = getAuth(req);
+    checkAccess(req);
+
+    const token = String(process.env.HF_TOKEN || '').trim();
+    if (!token) return send(res, 500, { ok:false, error:'HF_TOKEN is not configured in Vercel.' });
+
     const body = req.body && typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
-    const model = String(body.model || '').trim();
     const prompt = String(body.prompt || '').trim();
-
-    if (!model) return json(res, 400, { error: 'Model is required.' });
-    if (prompt.length < 3 || prompt.length > 5000) return json(res, 400, { error: 'Prompt must be between 3 and 5000 characters.' });
-
-    const catalog = await getImageCatalog(key);
-    const live = catalog.find(m => m.id === model);
-    if (!live) return json(res, 404, { error: 'Selected image model is not currently advertised by OpenRouter.' });
-    if (!live.free) {
-      return json(res, 409, { error: 'This build is currently free-first. The selected image model is premium/paid and was blocked.', model });
+    if (prompt.length < 3 || prompt.length > 1800) {
+      return send(res, 400, { ok:false, error:'Prompt must be between 3 and 1800 characters.' });
     }
 
-    const payload = { model, prompt };
+    const aspect = Object.prototype.hasOwnProperty.call(DIMENSIONS, String(body.aspect_ratio))
+      ? String(body.aspect_ratio)
+      : '1:1';
+    const { width, height } = DIMENSIONS[aspect];
 
-    const aspectRatio = String(body.aspect_ratio || '').trim();
-    if (aspectRatio && live.supported_aspect_ratios.includes(aspectRatio)) payload.aspect_ratio = aspectRatio;
+    const seed = Number.isInteger(Number(body.seed))
+      ? Math.max(0, Math.min(2147483647, Number(body.seed)))
+      : Math.floor(Math.random() * 2147483647);
 
-    const quality = String(body.quality || '').trim();
-    if (quality && live.supported_quality.includes(quality)) payload.quality = quality;
+    const { Client } = await import('@gradio/client');
+    const app = await Client.connect('black-forest-labs/FLUX.1-schnell', { hf_token: token });
 
-    const background = String(body.background || '').trim();
-    if (background && live.supported_background.includes(background)) payload.background = background;
+    const result = await app.predict('/infer', {
+      prompt,
+      seed,
+      randomize_seed: false,
+      width,
+      height,
+      num_inference_steps: 4
+    });
 
-    const n = Number(body.n);
-    if (Number.isInteger(n) && n >= 1 && n <= live.max_images) payload.n = n;
+    const output = result?.data?.[0] ?? null;
+    const usedSeed = result?.data?.[1] ?? seed;
+    const imageUrl =
+      (typeof output === 'string' ? output : null) ||
+      output?.url ||
+      output?.path ||
+      null;
 
-    const referenceUrl = ensureHttpUrl(body.reference_image_url, 'Reference-image');
-    if (referenceUrl && live.supportsReferences) {
-      payload.input_references = [{ type: 'image_url', image_url: { url: referenceUrl } }];
+    if (!imageUrl) {
+      return send(res, 502, {
+        ok:false,
+        error:'FLUX.1-schnell finished without returning an image URL.',
+        details:output
+      });
     }
 
-    const r = await fetch(`${API_BASE}/images`, { method: 'POST', headers: headers(key, true), body: JSON.stringify(payload) });
-    const data = await readJson(r);
-    if (!r.ok) return json(res, r.status, { error: data?.error?.message || data?.message || `Image generation failed (${r.status})`, details: data });
-    return json(res, 200, { ...data, authMode: mode });
-  } catch (e) {
-    return json(res, e.status || 500, { error: e.message, details: e.details || undefined });
+    return send(res, 200, {
+      ok:true,
+      status:'completed',
+      provider:'Hugging Face ZeroGPU',
+      model:'black-forest-labs/FLUX.1-schnell',
+      prompt,
+      aspect_ratio:aspect,
+      width,
+      height,
+      steps:4,
+      seed:usedSeed,
+      imageUrl
+    });
+  } catch (error) {
+    return send(res, error?.status || 500, {
+      ok:false,
+      error:error?.message || String(error),
+      hint:'Free ZeroGPU can be busy or your Hugging Face daily quota can be exhausted. Retry later if the error mentions queue, quota, capacity, or timeout.'
+    });
   }
 };
