@@ -1,24 +1,67 @@
-const { json, getAuth, getVideoCatalog, getImageCatalog } = require('./_shared');
+const { json, getAuth, getImageCatalog } = require('./_shared');
+
+function hfVideoModels() {
+  if (!process.env.HF_TOKEN) return [];
+  return [{
+    kind: 'video',
+    id: 'hf/lightricks-ltx-2-3',
+    label: 'Lightricks: LTX-2.3 Distilled',
+    description: 'Verified working free video generation through Hugging Face ZeroGPU. Generates video with native audio. Free usage is subject to the Hugging Face daily ZeroGPU quota and capacity.',
+    free: true,
+    available: true,
+    premium: false,
+    qualityScore: 90,
+    qualityLabel: 'High quality',
+    supported_durations: [1,2,3,4],
+    supported_resolutions: ['Low / Fast'],
+    supported_aspect_ratios: ['16:9','9:16','1:1'],
+    supports_audio: true,
+    provider: 'Hugging Face ZeroGPU'
+  }];
+}
 
 module.exports = async function handler(req, res) {
-  if (req.method !== 'GET') return json(res, 405, { error: 'Method not allowed' });
-  try {
-    const { key, mode } = getAuth(req);
-    const type = String(req.query.type || 'all');
+  if (req.method !== 'GET') return json(res, 405, { error:'Method not allowed' });
 
-    if (type === 'video') {
-      const models = await getVideoCatalog(key);
-      return json(res, 200, { mode, type, models, checkedAt: new Date().toISOString() });
-    }
+  const type = String(req.query.type || 'all');
+  const videoModels = hfVideoModels();
 
-    if (type === 'image') {
-      const models = await getImageCatalog(key);
-      return json(res, 200, { mode, type, models, checkedAt: new Date().toISOString() });
-    }
-
-    const [videoModels, imageModels] = await Promise.all([getVideoCatalog(key), getImageCatalog(key)]);
-    return json(res, 200, { mode, type: 'all', videoModels, imageModels, checkedAt: new Date().toISOString() });
-  } catch (e) {
-    return json(res, e.status || 500, { error: e.message, details: e.details || undefined });
+  if (type === 'video') {
+    return json(res, 200, {
+      mode:'free-only',
+      type,
+      videoModels,
+      models:videoModels,
+      checkedAt:new Date().toISOString()
+    });
   }
+
+  let imageModels = [];
+  let imageCatalogError = null;
+  try {
+    const { key } = getAuth(req);
+    imageModels = (await getImageCatalog(key)).filter(m => m.free);
+  } catch (e) {
+    imageCatalogError = e.message;
+  }
+
+  if (type === 'image') {
+    return json(res, 200, {
+      mode:'free-only',
+      type,
+      models:imageModels,
+      imageModels,
+      imageCatalogError,
+      checkedAt:new Date().toISOString()
+    });
+  }
+
+  return json(res, 200, {
+    mode:'free-only',
+    type:'all',
+    videoModels,
+    imageModels,
+    imageCatalogError,
+    checkedAt:new Date().toISOString()
+  });
 };
