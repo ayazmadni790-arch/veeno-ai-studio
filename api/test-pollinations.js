@@ -20,6 +20,40 @@ async function fetchJson(url, key) {
   return body;
 }
 
+function firstNumber(...values) {
+  for (const value of values) {
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function normalizeVideoModel(m) {
+  const pricePerSecond = firstNumber(
+    m?.completionVideoPrice,
+    m?.completion_video_price,
+    m?.pricing?.completionVideoPrice,
+    m?.pricing?.completion_video_price,
+    m?.pricing?.video,
+    m?.price_per_second,
+    m?.video_price
+  );
+
+  return {
+    id: m?.id || m?.model || m?.name || m?.alias || null,
+    name: m?.name || m?.label || m?.id || m?.model || null,
+    provider: m?.provider?.name || m?.provider || null,
+    paidOnly: m?.paid_only ?? m?.paidOnly ?? null,
+    pricePerSecond,
+    cost4s: pricePerSecond == null ? null : Number((pricePerSecond * 4).toFixed(6)),
+    cost5s: pricePerSecond == null ? null : Number((pricePerSecond * 5).toFixed(6)),
+    cost8s: pricePerSecond == null ? null : Number((pricePerSecond * 8).toFixed(6)),
+    cost10s: pricePerSecond == null ? null : Number((pricePerSecond * 10).toFixed(6)),
+    videoCapabilities: m?.video_capabilities || m?.videoCapabilities || null,
+    health: m?.health || null
+  };
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') return send(res, 405, { ok:false, error:'Method not allowed' });
 
@@ -32,10 +66,27 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const [keyInfo, balance] = await Promise.all([
+    const [keyInfo, balance, rawModels] = await Promise.all([
       fetchJson('https://gen.pollinations.ai/account/key', key),
-      fetchJson('https://gen.pollinations.ai/account/balance', key)
+      fetchJson('https://gen.pollinations.ai/account/balance', key),
+      fetchJson('https://gen.pollinations.ai/video/models?source=official&community=0', key)
     ]);
+
+    const models = (Array.isArray(rawModels) ? rawModels : rawModels?.data || [])
+      .map(normalizeVideoModel)
+      .sort((a,b) => {
+        if (a.pricePerSecond == null && b.pricePerSecond == null) return String(a.name).localeCompare(String(b.name));
+        if (a.pricePerSecond == null) return 1;
+        if (b.pricePerSecond == null) return -1;
+        return a.pricePerSecond - b.pricePerSecond;
+      });
+
+    const quest = Number(balance?.accountBalance?.tier || 0);
+    const affordable = models.filter(m =>
+      m.pricePerSecond != null &&
+      m.paidOnly !== true &&
+      m.cost4s <= quest
+    );
 
     return send(res, 200, {
       ok:true,
@@ -53,6 +104,11 @@ module.exports = async function handler(req, res) {
         total:balance?.accountBalance?.total ?? null,
         quest:balance?.accountBalance?.tier ?? null,
         paid:balance?.accountBalance?.paid ?? null
+      },
+      videoCatalog:{
+        count:models.length,
+        affordableWithQuestPollen4s:affordable,
+        allOfficialModels:models
       }
     });
   } catch (error) {
