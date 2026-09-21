@@ -5,9 +5,7 @@ function send(res, status, body) {
 }
 
 async function fetchJson(url, key) {
-  const r = await fetch(url, {
-    headers: { Authorization: `Bearer ${key}` }
-  });
+  const r = await fetch(url, { headers: { Authorization: `Bearer ${key}` } });
   const text = await r.text();
   let body;
   try { body = JSON.parse(text); } catch { body = { raw: text }; }
@@ -20,73 +18,52 @@ async function fetchJson(url, key) {
   return body;
 }
 
-function firstNumber(...values) {
-  for (const value of values) {
-    const n = Number(value);
-    if (Number.isFinite(n)) return n;
-  }
-  return null;
+function asArray(x) {
+  if (Array.isArray(x)) return x;
+  if (Array.isArray(x?.data)) return x.data;
+  if (Array.isArray(x?.models)) return x.models;
+  return [];
 }
 
-function normalizeVideoModel(m) {
-  const pricePerSecond = firstNumber(
-    m?.completionVideoPrice,
-    m?.completion_video_price,
-    m?.pricing?.completionVideoPrice,
-    m?.pricing?.completion_video_price,
-    m?.pricing?.video,
-    m?.price_per_second,
-    m?.video_price
-  );
+function idOf(m) {
+  return String(m?.id || m?.model || m?.name || m?.alias || '');
+}
 
-  return {
-    id: m?.id || m?.model || m?.name || m?.alias || null,
-    name: m?.name || m?.label || m?.id || m?.model || null,
-    provider: m?.provider?.name || m?.provider || null,
-    paidOnly: m?.paid_only ?? m?.paidOnly ?? null,
-    pricePerSecond,
-    cost4s: pricePerSecond == null ? null : Number((pricePerSecond * 4).toFixed(6)),
-    cost5s: pricePerSecond == null ? null : Number((pricePerSecond * 5).toFixed(6)),
-    cost8s: pricePerSecond == null ? null : Number((pricePerSecond * 8).toFixed(6)),
-    cost10s: pricePerSecond == null ? null : Number((pricePerSecond * 10).toFixed(6)),
-    videoCapabilities: m?.video_capabilities || m?.videoCapabilities || null,
-    health: m?.health || null
-  };
+function looksLikeVideo(m) {
+  const s = JSON.stringify(m).toLowerCase();
+  return /(veo|seedance|wan-|grok-imagine-video|nova-reel|happyhorse|minimax-h3|p-video|video_capabilities|video\/)/.test(s);
 }
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') return send(res, 405, { ok:false, error:'Method not allowed' });
 
   const key = String(process.env.POLLINATIONS_API_KEY || '').trim();
-  if (!key) {
-    return send(res, 500, {
-      ok:false,
-      error:'POLLINATIONS_API_KEY is not configured in Vercel.'
-    });
-  }
+  if (!key) return send(res, 500, { ok:false, error:'POLLINATIONS_API_KEY is not configured in Vercel.' });
 
   try {
-    const [keyInfo, balance, rawModels] = await Promise.all([
+    const [keyInfo, balance, videoModelsRaw, imageModelsRaw, allModelsRaw] = await Promise.all([
       fetchJson('https://gen.pollinations.ai/account/key', key),
       fetchJson('https://gen.pollinations.ai/account/balance', key),
-      fetchJson('https://gen.pollinations.ai/video/models?source=official&community=0', key)
+      fetchJson('https://gen.pollinations.ai/video/models?source=official', key),
+      fetchJson('https://gen.pollinations.ai/image/models?source=official', key),
+      fetchJson('https://gen.pollinations.ai/models?source=official', key)
     ]);
 
-    const models = (Array.isArray(rawModels) ? rawModels : rawModels?.data || [])
-      .map(normalizeVideoModel)
-      .sort((a,b) => {
-        if (a.pricePerSecond == null && b.pricePerSecond == null) return String(a.name).localeCompare(String(b.name));
-        if (a.pricePerSecond == null) return 1;
-        if (b.pricePerSecond == null) return -1;
-        return a.pricePerSecond - b.pricePerSecond;
-      });
+    const videoModels = asArray(videoModelsRaw);
+    const imageModels = asArray(imageModelsRaw);
+    const allModels = asArray(allModelsRaw);
 
-    const quest = Number(balance?.accountBalance?.tier || 0);
-    const affordable = models.filter(m =>
-      m.pricePerSecond != null &&
-      m.paidOnly !== true &&
-      m.cost4s <= quest
-    );
+    const candidatesMap = new Map();
+    for (const source of [videoModels, imageModels, allModels]) {
+      for (const model of source) {
+        if (!looksLikeVideo(model)) continue;
+        const id = idOf(model);
+        if (!id) continue;
+        if (!candidatesMap.has(id)) candidatesMap.set(id, model);
+      }
+    }
+
+    const candidates = [...candidatesMap.values()].sort((a,b) => idOf(a).localeCompare(idOf(b)));
 
     return send(res, 200, {
       ok:true,
@@ -96,7 +73,6 @@ module.exports = async function handler(req, res) {
         type:keyInfo?.type ?? null,
         name:keyInfo?.name ?? null,
         expiresAt:keyInfo?.expiresAt ?? null,
-        pollenBudget:keyInfo?.pollenBudget ?? null,
         permissions:keyInfo?.permissions ?? null
       },
       balance:{
@@ -105,10 +81,12 @@ module.exports = async function handler(req, res) {
         quest:balance?.accountBalance?.tier ?? null,
         paid:balance?.accountBalance?.paid ?? null
       },
-      videoCatalog:{
-        count:models.length,
-        affordableWithQuestPollen4s:affordable,
-        allOfficialModels:models
+      catalogDiagnostics:{
+        videoEndpointCount:videoModels.length,
+        imageEndpointCount:imageModels.length,
+        allEndpointCount:allModels.length,
+        candidateCount:candidates.length,
+        candidates
       }
     });
   } catch (error) {
